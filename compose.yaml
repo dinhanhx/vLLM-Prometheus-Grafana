@@ -1,0 +1,53 @@
+name: vllm-deploy
+services:
+  vllm-openai:
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities:
+                - gpu
+    volumes:
+      - ${PWD}/.cache/huggingface:/root/.cache/huggingface
+      - ${PWD}/.cache/vllm:/root/.cache/vllm
+    ports:
+      - 8791:8000
+    env_file:
+      - path: ${PWD}/vllm/.env
+    image: vllm/vllm-openai:v0.8.5
+    command: --model unsloth/gemma-3-4b-it-bnb-4bit --max-model-len=1024 --gpu-memory-utilization=0.8 --quantization bitsandbytes --limit-mm-per-prompt "{\"images\":1}" --max-num-seqs 1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      start_period: 60s
+      interval: 30s
+      timeout: 10s
+      retries: 10
+  prometheus:
+    ports:
+      - 8808:9090
+    volumes:
+      - ${PWD}/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    image: prom/prometheus
+    depends_on:
+      vllm-openai:
+        condition: service_healthy
+  grafana:
+    ports:
+      - 8809:3000
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    image: grafana/grafana-enterprise
+    depends_on:
+      vllm-openai:
+        condition: service_healthy
+volumes:
+    prometheus-data:
+        external: true
+        name: prometheus-data
+    grafana-storage:
+        external: true
+        name: grafana-storage
