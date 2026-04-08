@@ -1,6 +1,6 @@
 name: vllm-deploy
 services:
-  vllm-openai:
+  vllm:
     runtime: nvidia
     deploy:
       resources:
@@ -11,14 +11,20 @@ services:
               capabilities:
                 - gpu
     volumes:
-      - ${PWD}/.cache/huggingface:/root/.cache/huggingface
-      - ${PWD}/.cache/vllm:/root/.cache/vllm
+      - ${PWD}/.cache/:/root/.cache/
     ports:
       - 8791:8000
     env_file:
       - path: ${PWD}/vllm/.env
-    image: vllm/vllm-openai:v0.8.5
-    command: --model unsloth/gemma-3-4b-it-bnb-4bit --max-model-len=1024 --gpu-memory-utilization=0.8 --quantization bitsandbytes --limit-mm-per-prompt "{\"images\":1}" --max-num-seqs 1
+    image: vllm/vllm-openai:v0.18.0
+    command: >
+      Qwen/Qwen3-4B-Instruct-2507-FP8
+      --max-model-len 16384
+      --max-num-seqs 1
+      --gpu-memory-utilization 0.9
+      --enable-auto-tool-choice
+      --tool-call-parser hermes
+      --enable-prefix-caching
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       start_period: 60s
@@ -33,7 +39,7 @@ services:
       - prometheus-data:/prometheus
     image: prom/prometheus
     depends_on:
-      vllm-openai:
+      vllm:
         condition: service_healthy
   grafana:
     ports:
@@ -42,12 +48,12 @@ services:
       - grafana-storage:/var/lib/grafana
     image: grafana/grafana-enterprise
     depends_on:
-      vllm-openai:
+      vllm:
         condition: service_healthy
 volumes:
-    prometheus-data:
-        external: true
-        name: prometheus-data
-    grafana-storage:
-        external: true
-        name: grafana-storage
+  prometheus-data:
+    external: true
+    name: prometheus-data
+  grafana-storage:
+    external: true
+    name: grafana-storage
