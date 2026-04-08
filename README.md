@@ -6,7 +6,7 @@ This is a simple example that shows you how to connect vLLM metric logging to th
 
 This will save model to `${PWD}/.cache/huggingface`. Please edit `HF_TOKEN` in the script,
 ```bash
-bash download_model.sh unsloth/gemma-3-4b-it-bnb-4bit
+sh download_model.sh Qwen/Qwen3-4B-Instruct-2507-FP8
 ```
 
 ## Create volume
@@ -31,7 +31,7 @@ docker compose up
 
 Go to `http://localhost:8809` to visit your Grafana, and import `vLLM-Grafana-dashboard.json`
 
-You can call model at `http://localhost:8791` with `openai` client,
+You can call model at `http://localhost:8791` with `openai` client and `llm-sandbox` for Docker sandbox,
 ```bash
-python test_infra.py
+python scripts/test_sandbox.py
 ```
