@@ -46,6 +46,10 @@ services:
       - 8809:3000
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ${PWD}/grafana.ini:/etc/grafana/grafana.ini
+      - ${PWD}/datasource-provisioning.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ${PWD}/dashboard-provisioning.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ${PWD}/vLLM-Grafana-dashboard.json:/etc/grafana/provisioning/dashboards/vllm-dashboard.json
     image: grafana/grafana-enterprise
     depends_on:
       vllm:
