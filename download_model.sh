@@ -1,4 +1,4 @@
 export HF_HOME=${PWD}/.cache/huggingface 
-export HF_TOKEN="your huggingface api key goes here"
+export HF_TOKEN=hf_token
 
-huggingface-cli download $1 
+hf download $1 
