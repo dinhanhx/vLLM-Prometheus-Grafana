@@ -5,7 +5,6 @@ from llm_sandbox import SandboxSession
 client = OpenAI(base_url="http://localhost:8791/v1", api_key="EMPTY")
 MODEL = "Qwen/Qwen3-4B-Instruct-2507-FP8"
 
-# ── Tool definition (passed to the LLM) ──────────────────────────────────────
 tools = [
     {
         "type": "function",
@@ -34,7 +33,7 @@ tools = [
     }
 ]
 
-# ── Tool executor (calls llm-sandbox) ────────────────────────────────────────
+
 def run_python_code(code: str, libraries: list[str] | None = None) -> str:
     with SandboxSession(lang="python", verbose=False) as session:
         result = session.run(code, libraries=libraries or [])
@@ -42,9 +41,10 @@ def run_python_code(code: str, libraries: list[str] | None = None) -> str:
         return f"Error (exit {result.exit_code}):\n{result.stderr}"
     return result.stdout.strip()
 
+
 TOOL_DISPATCH = {"run_python_code": run_python_code}
 
-# ── Agentic loop ──────────────────────────────────────────────────────────────
+
 def chat(user_message: str) -> str:
     messages = [{"role": "user", "content": user_message}]
 
@@ -69,16 +69,17 @@ def chat(user_message: str) -> str:
             args = json.loads(tc.function.arguments)
             fn = TOOL_DISPATCH[tc.function.name]
             output = fn(**args)
-            # print(f"[sandbox] {tc.function.name}({args}) →\n{output}\n")
+            print(f"[sandbox] {tc.function.name}({args}) →\n{output}\n")
 
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": output,
-            })
-        # Loop: model will now read the tool results and decide next step
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": output,
+                }
+            )
 
-# ── Run ───────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
-    answer = chat(r"What is 41% of 89?")
+    answer = chat(r"What is sum of the first 100 primes?")
     print("Answer:", answer)
