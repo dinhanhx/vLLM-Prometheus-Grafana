@@ -302,6 +302,33 @@ Verify:
 - Prometheus target `vllm:8000` shows as `UP` in the Prometheus UI (`/targets`).
 - Grafana dashboard loads with the provisioned vLLM dashboard and data flowing from Prometheus.
 
+## Getting a locally git-cloned model onto the cluster (before vLLM starts)
+
+If a model is git-cloned to a local folder (e.g. `git-clone-models/<model-name>`) rather than pulled by vLLM/HF Hub at container startup, it needs to land on the `vllm-cache` PVC (mounted at `/root/.cache` per Step 4) — and ideally *before* the vLLM Deployment (Step 4) is applied, so the first pod start already has the model instead of failing/pulling on demand.
+
+**Option 1 — pre-seed the PVC with a throwaway helper pod (recommended):**
+
+`kubectl cp` requires a pod that mounts the target PVC — there's no way to copy into a PVC with zero pods. So run this after Steps 1–3 (namespace, secret, PVCs) but before Step 4 (vLLM Deployment):
+
+```bash
+kubectl run model-seed -n vllm-deploy --image=busybox --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"model-seed","image":"busybox","command":["sleep","3600"],"volumeMounts":[{"name":"cache","mountPath":"/root/.cache"}]}],"volumes":[{"name":"cache","persistentVolumeClaim":{"claimName":"vllm-cache"}}]}}'
+kubectl wait --for=condition=Ready pod/model-seed -n vllm-deploy --timeout=60s
+
+kubectl cp git-clone-models/<model-name> vllm-deploy/model-seed:/root/.cache/<model-name>
+
+kubectl delete pod model-seed -n vllm-deploy
+# now apply the vLLM Deployment (Step 4) — model is already on the PVC
+```
+
+No manifest changes to the vLLM Deployment itself required — the copy lands directly on the PVC it will mount. `kubectl cp` tars the data over the API server, so for very large models (tens of GB) it can be slow or flaky.
+
+**Option 2 — `minikube mount` (live host directory, no copy, no PVC pre-seed needed):**
+```bash
+minikube mount /path/to/vllm-deploy/git-clone-models:/mnt/models
+```
+Start this (and leave it running in its own terminal) before applying the vLLM Deployment. It live-mounts the host folder into the minikube node. Requires adding a `hostPath` volume (and volumeMount) to the vLLM Deployment pointing at `/mnt/models` instead of/alongside the PVC — more invasive, but the model is available from the very first pod start with no copy step, and local file changes reflect immediately.
+
 ## Observability best practices
 
 [Unverified] Drawn from the [vLLM Prometheus/Grafana observability example](https://docs.vllm.ai/en/v0.20.1/examples/observability/prometheus_grafana/).

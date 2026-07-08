@@ -112,6 +112,38 @@ kubectl delete namespace vllm-deploy
 ```
 This is destructive — it deletes the Deployments, Services, ConfigMaps, Secret, and PVCs (i.e. the cached model weights and Prometheus/Grafana data) in one shot. Confirm you actually want to lose the PVC data before running it.
 
+## Copying a locally git-cloned model into the cluster
+
+If a model is git-cloned to a local folder (e.g. `git-clone-models/<model-name>`) instead of pulled by vLLM at startup, get it onto the `vllm-cache` PVC. `kubectl cp` needs a pod that already mounts the PVC, so if you want the model in place *before* the vllm pod ever starts, seed the PVC via a throwaway helper pod first.
+
+**Option 1 — `kubectl cp` into a throwaway helper pod (pre-seed PVC before vllm starts):**
+```bash
+# after namespace + PVC exist, but before applying 30-vllm.yaml
+kubectl apply -f 00-namespace.yaml
+kubectl apply -f 10-pvc.yaml
+
+kubectl run model-seed -n vllm-deploy --image=busybox --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"model-seed","image":"busybox","command":["sleep","3600"],"volumeMounts":[{"name":"cache","mountPath":"/root/.cache"}]}],"volumes":[{"name":"cache","persistentVolumeClaim":{"claimName":"vllm-cache"}}]}}'
+kubectl wait --for=condition=Ready pod/model-seed -n vllm-deploy --timeout=60s
+
+kubectl cp git-clone-models/<model-name> vllm-deploy/model-seed:/root/.cache/<model-name>
+
+kubectl delete pod model-seed -n vllm-deploy
+# now safe to apply 30-vllm.yaml (and the rest) — model is already on the PVC
+```
+If the vllm pod is already running instead, skip the helper pod and `kubectl cp` straight into it:
+```bash
+kubectl get pods -n vllm-deploy -l app=vllm
+kubectl cp git-clone-models/<model-name> vllm-deploy/<pod-name>:/root/.cache/<model-name>
+```
+Either way the data lands on the PVC mounted at `/root/.cache`, so it persists across restarts. For very large models (tens of GB) `kubectl cp` can be slow since it tars over the API server.
+
+**Option 2 — `minikube mount` (live host directory, no copy, no PVC):**
+```bash
+minikube mount /path/to/vllm-deploy/git-clone-models:/mnt/models
+```
+Run this before `./apply.sh` (or at least before the vllm Deployment starts) and leave it running in its own terminal — it live-syncs the host folder into the minikube VM/container. Requires adding a `hostPath` volume to the vllm Deployment pointing at `/mnt/models` — more invasive than Option 1, but avoids re-copying large models and reflects local edits immediately, with the model available from the vllm pod's very first start.
+
 ## Editing config (ConfigMaps/Secrets aren't live-reloaded)
 
 Unlike a bind mount in compose, editing `prometheus.yml` or `grafana-provisioning/*` on disk does **not** automatically update the running pod. You must recreate the ConfigMap and restart the pod:
