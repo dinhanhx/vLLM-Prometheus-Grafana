@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm
+  namespace: vllm-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: vllm }
+  template:
+    metadata:
+      labels: { app: vllm }
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: vllm
+          image: vllm/vllm-openai:v0.20.1
+          args:
+            - "Qwen/Qwen3.5-0.8B"
+            - "--max-model-len=1024"
+            - "--max_num_batched_tokens=1024"
+            - "--max-num-seqs=1"
+            - "--gpu-memory-utilization=0.8"
+            - "--no-enable-prefix-caching"
+            - "--trust-remote-code"
+            - '--limit-mm-per-prompt={"image":1,"video":0,"audio":0}'
+          envFrom:
+            - secretRef: { name: vllm-env }
+          ports:
+            - containerPort: 8000
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: cache
+              mountPath: /root/.cache
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 10
+      volumes:
+        - name: cache
+          persistentVolumeClaim: { claimName: vllm-cache }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm
+  namespace: vllm-deploy
+spec:
+  selector: { app: vllm }
+  ports:
+    - port: 8000
+      targetPort: 8000
