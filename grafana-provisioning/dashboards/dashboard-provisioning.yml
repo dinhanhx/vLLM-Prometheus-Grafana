@@ -9,4 +9,5 @@ providers:
   updateIntervalSeconds: 10
   allowUiUpdates: true
   options:
-    path: /etc/grafana/provisioning/dashboards/vllm-dashboard.json
+    path: /etc/grafana/provisioning/dashboards/vLLM-dashboard.json
+
