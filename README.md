@@ -67,7 +67,7 @@ rednote-hilab/dots.mocr
 --limit-mm-per-prompt '{"image":1, "video": 0, "audio": 0}'
 ```
 
-Go to `http://localhost:8809` to visit your Grafana, and import `vLLM-Grafana-dashboard.json`
+Go to `http://localhost:8809` to visit your Grafana
 
 You can call model at `http://localhost:8791` with 
 `openai` client,
