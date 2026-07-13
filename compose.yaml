@@ -19,8 +19,8 @@ services:
     image: vllm/vllm-openai:v0.20.1
     command: >
       Qwen/Qwen3.5-0.8B
-      --max-model-len 1024
-      --max_num_batched_tokens 1024
+      --max-model-len 16384
+      --max_num_batched_tokens 128
       --max-num-seqs 1
       --gpu-memory-utilization 0.8
       --no-enable-prefix-caching

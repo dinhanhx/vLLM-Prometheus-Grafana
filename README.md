@@ -1,6 +1,6 @@
-# vLLM - Prometheus - Grafana
+# vLLM - Prometheus - Grafana - K8S
 
-This is a simple example that shows you how to connect vLLM metric logging to the Prometheus/Grafana stack. 
+This is a simple example that shows you how to connect vLLM metric logging to the Prometheus Grafana stack. It's also to demonstrate K8S.
 
 ## Download model
 
@@ -8,6 +8,7 @@ This will save model to `${PWD}/.cache/huggingface`. Please edit `HF_TOKEN` in t
 ```bash
 sh download_model.sh Qwen/Qwen3-4B-Instruct-2507-FP8 # in: text, out: text
 sh download_model.sh Qwen/Qwen3.5-0.8B # in: image+text, out: text
+sh download_model.sh rednote-hilab/dots.mocr # in: image+text, out: text
 ```
 
 ## Docker
@@ -36,10 +37,12 @@ Example:
 ```
 Qwen/Qwen3.5-0.8B
 --max-model-len 16384
+--max_num_batched_tokens 128
 --max-num-seqs 1
---gpu-memory-utilization 0.9
---enable-prefix-caching
---limit-mm-per-prompt "{\"images\":1}"
+--gpu-memory-utilization 0.8
+--no-enable-prefix-caching
+--trust-remote-code
+--limit-mm-per-prompt '{"image":1, "video": 0, "audio": 0}'
 ```
 
 ```
@@ -52,12 +55,27 @@ Qwen/Qwen3-4B-Instruct-2507-FP8
 --enable-prefix-caching
 ```
 
+```
+rednote-hilab/dots.mocr
+--max-model-len 2048
+--max_num_batched_tokens 2048
+--max-num-seqs 1
+--gpu-memory-utilization 0.8
+--no-enable-prefix-caching
+--chat-template-content-format string
+--trust-remote-code
+--limit-mm-per-prompt '{"image":1, "video": 0, "audio": 0}'
+```
+
 Go to `http://localhost:8809` to visit your Grafana, and import `vLLM-Grafana-dashboard.json`
 
 You can call model at `http://localhost:8791` with 
 `openai` client,
 ```bash
 python scripts/test_image.py
+```
+```bash
+python scripts/test_table.py
 ```
 `llm-sandbox` for Docker sandbox,
 ```bash

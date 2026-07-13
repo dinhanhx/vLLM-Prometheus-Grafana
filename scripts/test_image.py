@@ -7,7 +7,7 @@ with open("assets/sample.jpg", "rb") as image_file:
     image_data = base64.standard_b64encode(image_file.read()).decode("utf-8")
 
 response = client.chat.completions.create(
-    model="Qwen/Qwen3.5-2B",
+    model="Qwen/Qwen3.5-0.8B",
     messages=[
         {
             "role": "user",
